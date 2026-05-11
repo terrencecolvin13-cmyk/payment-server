@@ -1,49 +1,84 @@
-const express = require("express");
-const cors = require("cors");
-const Stripe = require("stripe");
+// ---------------------------------------------
+// DISTRICT THREADS PAYMENT SERVER
+// Supports:
+// - Apple Pay
+// - Google Pay
+// - Cash App Pay
+// - Link
+// - Cards
+// ---------------------------------------------
+
+import express from "express";
+import cors from "cors";
+import Stripe from "stripe";
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+// ---------------------------------------------
+// STRIPE INIT
+// ---------------------------------------------
+if (!process.env.STRIPE_SECRET_KEY) {
+  console.error("❌ Missing STRIPE_SECRET_KEY in Render environment variables");
+}
 
-// test route
-app.get("/", (req, res) => {
-  res.send("Payment server running");
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+  apiVersion: "2023-10-16",
 });
 
-// create checkout session
-app.post("/create-checkout-session", async (req, res) => {
+// ---------------------------------------------
+// TEST ROUTE
+// ---------------------------------------------
+app.get("/", (req, res) => {
+  res.send("District Threads payment server is running.");
+});
+
+// ---------------------------------------------
+// CREATE PAYMENT INTENT
+// (Apple Pay, Google Pay, Cash App Pay, Link, Cards)
+// ---------------------------------------------
+app.post("/create-payment-intent", async (req, res) => {
   try {
-    const session = await stripe.checkout.sessions.create({
-      payment_method_types: ["card"],
-      mode: "payment",
-      line_items: [
-        {
-          price_data: {
-            currency: "usd",
-            product_data: {
-              name: "Your Product"
-            },
-            unit_amount: 2000
-          },
-          quantity: 1
-        }
+    const { amount } = req.body;
+
+    if (!amount) {
+      return res.status(400).send({ error: "Amount is required" });
+    }
+
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount,
+      currency: "usd",
+
+      // REQUIRED for Apple Pay, Google Pay, Cash App Pay
+      automatic_payment_methods: {
+        enabled: true,
+        allow_redirects: "never",
+      },
+
+      // Optional: explicitly include Cash App Pay + Link
+      payment_method_types: [
+        "card",
+        "cashapp",
+        "link",
+        "us_bank_account",
       ],
-      success_url: "https://your-site.com/success",
-      cancel_url: "https://your-site.com/cancel"
     });
 
-    res.json({ url: session.url });
-  } catch (err) {
-    console.error(err);
-    res.status(500).send("Error creating checkout session");
+    res.send({
+      clientSecret: paymentIntent.client_secret,
+    });
+
+  } catch (error) {
+    console.error("❌ Stripe Error:", error);
+    res.status(500).send({ error: error.message });
   }
 });
 
+// ---------------------------------------------
+// START SERVER
+// ---------------------------------------------
 const PORT = process.env.PORT || 3000;
-
 app.listen(PORT, () => {
-  console.log("Server running on port " + PORT);
+  console.log(`✅ Payment server running on port ${PORT}`);
 });
