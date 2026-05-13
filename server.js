@@ -13,7 +13,22 @@ import cors from "cors";
 import Stripe from "stripe";
 
 const app = express();
-app.use(cors());
+
+// ---------------------------------------------
+// FIXED CORS CONFIG (REQUIRED FOR BASE44)
+// ---------------------------------------------
+app.use(
+  cors({
+    origin: [
+      "https://district-threads-9825d602.base44.app",
+      "https://app.base44.com",
+      "http://localhost:3000"
+    ],
+    methods: ["GET", "POST"],
+    allowedHeaders: ["Content-Type"],
+  })
+);
+
 app.use(express.json());
 
 // ---------------------------------------------
