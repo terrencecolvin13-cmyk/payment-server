@@ -15,7 +15,7 @@ import Stripe from "stripe";
 const app = express();
 
 // ---------------------------------------------
-// FIXED CORS CONFIG (REQUIRED FOR BASE44)
+// CORS CONFIG (REQUIRED FOR BASE44)
 // ---------------------------------------------
 app.use(
   cors({
@@ -51,7 +51,6 @@ app.get("/", (req, res) => {
 
 // ---------------------------------------------
 // CREATE PAYMENT INTENT
-// (Apple Pay, Google Pay, Cash App Pay, Link, Cards)
 // ---------------------------------------------
 app.post("/create-payment-intent", async (req, res) => {
   try {
@@ -61,23 +60,14 @@ app.post("/create-payment-intent", async (req, res) => {
       return res.status(400).send({ error: "Amount is required" });
     }
 
+    // ⭐ FIXED: Removed payment_method_types (conflicts with automatic_payment_methods)
     const paymentIntent = await stripe.paymentIntents.create({
       amount,
       currency: "usd",
-
-      // REQUIRED for Apple Pay, Google Pay, Cash App Pay
       automatic_payment_methods: {
         enabled: true,
         allow_redirects: "never",
       },
-
-      // Optional: explicitly include Cash App Pay + Link
-      payment_method_types: [
-        "card",
-        "cashapp",
-        "link",
-        "us_bank_account",
-      ],
     });
 
     res.send({
